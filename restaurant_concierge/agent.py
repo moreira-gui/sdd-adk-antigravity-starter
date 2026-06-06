@@ -17,13 +17,15 @@ from toolbox_core import ToolboxSyncClient
 
 TOOLBOX_URL = os.environ.get("TOOLBOX_URL", "http://127.0.0.1:5000")
 
+toolbox_tools = []
 # Connect to MCP Toolbox for database tools (menu search) with graceful fallback
 try:
-    toolbox_client = ToolboxSyncClient(TOOLBOX_URL)
-    toolbox_tools = toolbox_client.load_toolset()
+    # Evita bloqueio do probe TCP de inicialização no Cloud Run quando o Toolbox não está rodando localmente
+    if not (os.environ.get("K_SERVICE") and ("127.0.0.1" in TOOLBOX_URL or "localhost" in TOOLBOX_URL)):
+        toolbox_client = ToolboxSyncClient(TOOLBOX_URL)
+        toolbox_tools = toolbox_client.load_toolset()
 except Exception as e:
     print(f"Warning: Could not connect to MCP Toolbox at {TOOLBOX_URL}: {e}")
-    toolbox_tools = []
 
 
 async def save_dietary_preference(tool_context: ToolContext, preference: str) -> str:
