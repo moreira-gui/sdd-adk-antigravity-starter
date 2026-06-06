@@ -11,6 +11,7 @@ A restaurant concierge starter application powered by a Google ADK agent. The st
 - A pre-configured Antigravity skill with ADK codelab reference patterns and repo research
 - Database scripts for Cloud SQL setup, seeding, and embedding generation
 - **Table Reservation API (`001-table-reservation-api`)**: Fully implemented production backend supporting table reservations (`POST /reservations`), capacity limits (`MAX_CAPACITY = 40`), concurrency protection, and secured reservation listings (`GET /reservations`).
+- **Cloud Run Deployment Pipeline & Secure Containerization (`002-cloudrun-deploy-pipeline`)**: Production minimal `python:3.11-slim` Dockerfile running under an unprivileged non-root user (`appuser` UID 10001) alongside a declarative `cloudbuild.yaml` CI/CD rollout pipeline with Secret Manager dynamic credential injection.
 
 ## Codelab
 
@@ -38,17 +39,40 @@ To execute the automated BDD and security test suite validating input rules, pas
 uv run pytest tests/
 ```
 
-### 3. Running the Server Locally
+### 3. Running the Server Locally (Direct or Containerized)
 
-Start the live dev server (with hot reload or standalone Uvicorn):
-
+#### Standalone Uvicorn Server
 ```bash
 uv run python server.py
 ```
 
-### 4. Interactive API Documentation & Verification
+#### Secure Containerized Runtime (`appuser` UID 10001)
+Build the minimal non-root hardened image:
+```bash
+docker build -t fastapi-app:local .
+```
+Launch local container mapping port 8080:
+```bash
+docker run -d -p 8080:8080 --name local-app \
+  -e DATABASE_URL=sqlite+aiosqlite:///:memory: \
+  -e RESERVATIONS_API_KEY=secret123 \
+  fastapi-app:local
+```
+
+### 4. Cloud Build CI/CD Deployment (`cloudbuild.yaml`)
+
+Execute automated deployment to Google Cloud Run injecting database credentials dynamically via Secret Manager:
+```bash
+gcloud builds submit --config cloudbuild.yaml .
+```
+
+### 5. Interactive API Documentation & Verification
 
 - OpenAPI interactive UI: [http://localhost:8080/docs](http://localhost:8080/docs)
+- **Health Verification Probe (`GET /health`)**:
+  ```bash
+  curl http://localhost:8080/health
+  ```
 - **Reserve a Table (`POST /reservations`)**:
   ```bash
   curl -X POST http://localhost:8080/reservations \

@@ -1,7 +1,7 @@
 # Project Context: Restaurant Concierge
 
 **Last Updated**: 2026-06-06
-**Updated By**: Feature 001-table-reservation-api
+**Updated By**: Feature 002-cloudrun-deploy-pipeline
 
 ## Project Identity
 
@@ -15,6 +15,7 @@
 ### Languages & Versions
 - **Python**: `>=3.12` (added by `main`)
 - **SQL (PostgreSQL Dialect)**: `17` (added by `main`)
+- **Docker**: `minimal python:3.11-slim base runtime` (added by `002-cloudrun-deploy-pipeline`)
 
 ### Frameworks & Libraries
 - **google-adk**: `>=1.0.0` (added by `main`)
@@ -25,8 +26,10 @@
 - **antigravity**: `>=0.1` (added by `main`)
 - **FastAPI**: Transitive dependency via `google-adk` (added by `main`)
 
-### Storage
+### Storage & Runtime
 - **Cloud SQL PostgreSQL**: `17` with `vector` and `google_ml_integration` extensions enabled (added by `main`)
+- **Google Cloud Run**: Fully managed serverless container execution platform (added by `002-cloudrun-deploy-pipeline`)
+- **Google Secret Manager**: Centralized vault injecting runtime environment variables (`DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_NAME`) (added by `002-cloudrun-deploy-pipeline`)
 
 ### Testing
 - **pytest**: For unit, integration, and BDD endpoint testing (added by `001-table-reservation-api`)
@@ -84,6 +87,8 @@
 │   └── test_reservations.py
 ├── .env.example
 ├── .gitignore
+├── cloudbuild.yaml
+├── Dockerfile
 ├── LICENSE
 ├── pyproject.toml
 ├── README.md
@@ -101,6 +106,7 @@
 | POST | `/api/chat` | Behind-the-scenes endpoint (if applicable) for chat interaction with the agent |
 | POST | `/reservations` | Create a new table reservation |
 | GET | `/reservations` | List all reservations (secured with X-API-KEY header) |
+| GET | `/health` | Runtime container health verification |
 
 ## Runtime Dependency Graph
 
@@ -108,7 +114,7 @@
 [FastAPI Server :8080] → [MCP Toolbox :5000] → [Cloud SQL (PostgreSQL 17)] → [Vertex AI]
 ```
 
-- **FastAPI Server (`server.py`)**: Runs on port `8080`. Serves the web-based chat interface. Started via `uv run python server.py`.
+- **FastAPI Server (`server.py`)**: Runs on port `8080`. Serves the web-based chat interface. Started via `uv run python server.py` or containerized execution.
 - **MCP Toolbox (`tools.yaml`)**: Runs on port `5000`. Exposes PostgreSQL database queries as tool definitions to the LLM agent. Started via `npx -y @toolbox-sdk/server --config tools.yaml`.
 - **Cloud SQL (PostgreSQL 17)**: Managed relational database storing menu items and vector embeddings.
 - **Vertex AI**: Google Cloud AI platform, accessed directly within the database via the `google_ml_integration` extension to generate text embeddings using `gemini-embedding-001`.
@@ -165,6 +171,12 @@
   - Relationships: None.
   - Special features: Requires transaction-level serialization or row-level locking to prevent capacity limit (40 seats) overbooking.
 
+- **ContainerRuntimeConfig** (defined in `002-cloudrun-deploy-pipeline`):
+  - Purpose: Defines the parameters and minimal Python 3.11 slim runtime for the secure container.
+
+- **DeploymentPipelineSchema** (defined in `002-cloudrun-deploy-pipeline`):
+  - Purpose: Coordinates Cloud Build deployment triggers and Secret Manager binding.
+
 ### Tool Definitions
 - **search_menu**: `menu_items` — SELECT (keyword match on name, category, or description)
 - **semantic_search_menu**: `menu_items` — SELECT (vector distance cosine similarity search)
@@ -183,6 +195,8 @@
 
 ## External Integrations
 
+- **Google Secret Manager**: Dynamically injects runtime database credentials (`DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_NAME`) (added by `002-cloudrun-deploy-pipeline`).
+- **Google Cloud Run / Cloud Build**: Automated CI/CD deployment pipeline triggering on pushes to `main` (added by `002-cloudrun-deploy-pipeline`).
 - **Vertex AI (gemini-embedding-001)**: Generates text embeddings for menu searches and data seeding (added by `main`).
   - Authentication: Application Default Credentials (ADC) or service account permissions (`roles/aiplatform.user`) bound to the Cloud SQL instance service account.
   - Endpoints: Accessed via standard Cloud SQL `google_ml_integration.embedding(...)` function.
@@ -204,12 +218,15 @@
 
 ## Recent Features
 
+- **002-cloudrun-deploy-pipeline**: Added secure minimal `python:3.11-slim` Dockerfile and Cloud Build CI/CD pipeline deploying to Cloud Run utilizing Secret Manager.
 - **001-table-reservation-api**: Added table reservations API (POST/GET) with static seating capacity checks and API key security.
 - **main**: Added core restaurant concierge agent, menu search tools (keyword + semantic via MCP Toolbox), dietary preference tracking, and database seed scripts.
 
 ## Configuration
 
 - **Config Files**:
+  - `cloudbuild.yaml` (Cloud Build CI/CD rollout workflow)
+  - `Dockerfile` (Container runtime configuration)
   - `pyproject.toml` (Python packages & configurations)
   - `tools.yaml` (MCP database source and tool query mappings)
   - `.env` (Environment secrets and setup parameters)
@@ -223,6 +240,7 @@
 | `DB_PASSWORD` | `setup_database.sh`, `tools.yaml`, `seed_db.py` | Authentication to Cloud SQL Postgres instance will fail. |
 | `TOOLBOX_URL` | `restaurant_concierge/agent.py` | Agent will fail to load or connect to the MCP database tools. |
 | `RESERVATIONS_API_KEY` | `restaurant_concierge/reservations.py` | Authorization for retrieving the reservations list will fail. |
+| `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_NAME` | `Dockerfile`, `cloudbuild.yaml` | Runtime Secret Manager injection into Cloud Run instance will fail. |
 
 ## Known Constraints
 
