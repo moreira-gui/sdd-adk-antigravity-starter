@@ -105,9 +105,9 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T015 [P] Update local configuration / runtime runbook in `README.md`
-- [ ] T016 Run all tests via pytest to verify 100% test coverage and compliance with success criteria
-- [ ] T017 Run quickstart.md validation script / verification manually
+- [x] T015 [P] Update local configuration / runtime runbook in `README.md`
+- [x] T016 Run all tests via pytest to verify 100% test coverage and compliance with success criteria
+- [x] T017 Run quickstart.md validation script / verification manually
 
 ---
 
