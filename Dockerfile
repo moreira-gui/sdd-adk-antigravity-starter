@@ -18,10 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir uv==0.5.11
 
 # Copy dependency configuration files
-COPY pyproject.toml ./
+COPY pyproject.toml requirements.txt ./
 
-# Install dependencies deterministically
-RUN uv pip install --system -r pyproject.toml
+# Install dependencies deterministically using requirements.txt
+RUN uv pip install --system -r requirements.txt
 
 # Copy application source code
 COPY . .
