@@ -33,8 +33,5 @@ RUN groupadd -g 10001 appgroup && \
 
 USER appuser
 
-# Expose web server port 8080
-EXPOSE 8080
-
-# Launch live production Uvicorn server entrypoint
-CMD ["python", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]
+# Launch live production server entrypoint dynamically binding to $PORT
+CMD ["python", "server.py"]
